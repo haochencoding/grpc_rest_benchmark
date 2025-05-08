@@ -26,6 +26,7 @@ message UserListRequest {
   uint32 age_min = 3;
   uint32 age_max = 4;
 }
+
 message UserListResponse { repeated User users = 1; }
 
 message UserRequest { uint32 user_id = 1; }
@@ -52,6 +53,7 @@ message EventListRequest {
   string session_id = 4;
   string event      = 5;
 }
+
 message EventListResponse { repeated Event events = 1; }
 
 message Metric {
@@ -59,7 +61,7 @@ message Metric {
   string region            = 2;
   string az                = 3;
   string hostname          = 4;
-  string ts                = 5;      // keep original nanosecond string
+  string ts                = 5;      // keep original millisecond string
   double cpu_utilization   = 6;
   double memory_utilization= 7;
 }
@@ -70,4 +72,5 @@ message MetricListRequest {
   string hostname= 3;
   string region  = 4;
 }
+
 message MetricListResponse { repeated Metric metrics = 1; }

@@ -1,17 +1,14 @@
 #!/usr/bin/env python3
 """grpc_server.py – gRPC façade for the SQLite demo database
 
-* Exposes the same data as `api_server.py`, but via Protobuf/HTTP-2.
 * Depends only on the generated files `sample_api_pb2.py` and
   `sample_api_pb2_grpc.py`, which must sit in the **same folder**
-  (./grpc/ by default).
 * SQLite file defaults to ../db/data.db but can be overridden with the
   `SQLITE_DB` env var.
 
 Run locally:
 
     python grpc_server.py            # port 50051
-    SQLITE_DB=/path/to/db uvicorn api_server:app &  # if you want REST too
 
 Test client (Python REPL):
 
@@ -62,6 +59,7 @@ def get_conn() -> sqlite3.Connection:
 # ---------------------------------------------------------------------------
 # Service implementation
 # ---------------------------------------------------------------------------
+
 
 class SampleApiService(pb2_grpc.SampleApiServicer):
     """Concrete implementation of the protobuf service."""
@@ -137,6 +135,7 @@ class SampleApiService(pb2_grpc.SampleApiServicer):
 # Bootstrap
 # ---------------------------------------------------------------------------
 
+
 async def serve(host: str = "0.0.0.0", port: int = 50051):  # noqa: S104
     server = grpc.aio.server()
     pb2_grpc.add_SampleApiServicer_to_server(SampleApiService(), server)
@@ -150,4 +149,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(serve())
     except (KeyboardInterrupt, SystemExit):
-        print("Shutting down gRPC server…")
+        print("Shutting down gRPC server")
