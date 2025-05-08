@@ -3,7 +3,8 @@ syntax = "proto3";
 package sample;
 
 service SampleApi {
-  rpc ListMetrics (MetricListRequest) returns (MetricListResponse);
+  rpc MetricsListUnaryResponse (MetricListRequest) returns (MetricListResponse); // Unary
+  rpc MetricsListStreamResponse (MetricListRequest) returns (stream MetricListResponse);  // Stream
   rpc CountMetrics (MetricCountRequest) returns (MetricCountResponse);
 }
 

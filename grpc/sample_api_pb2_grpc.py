@@ -34,8 +34,13 @@ class SampleApiStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.ListMetrics = channel.unary_unary(
-                '/sample.SampleApi/ListMetrics',
+        self.MetricsListUnaryResponse = channel.unary_unary(
+                '/sample.SampleApi/MetricsListUnaryResponse',
+                request_serializer=sample__api__pb2.MetricListRequest.SerializeToString,
+                response_deserializer=sample__api__pb2.MetricListResponse.FromString,
+                _registered_method=True)
+        self.MetricsListStreamResponse = channel.unary_stream(
+                '/sample.SampleApi/MetricsListStreamResponse',
                 request_serializer=sample__api__pb2.MetricListRequest.SerializeToString,
                 response_deserializer=sample__api__pb2.MetricListResponse.FromString,
                 _registered_method=True)
@@ -49,8 +54,16 @@ class SampleApiStub(object):
 class SampleApiServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def ListMetrics(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+    def MetricsListUnaryResponse(self, request, context):
+        """Unary
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def MetricsListStreamResponse(self, request, context):
+        """Stream
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -64,8 +77,13 @@ class SampleApiServicer(object):
 
 def add_SampleApiServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'ListMetrics': grpc.unary_unary_rpc_method_handler(
-                    servicer.ListMetrics,
+            'MetricsListUnaryResponse': grpc.unary_unary_rpc_method_handler(
+                    servicer.MetricsListUnaryResponse,
+                    request_deserializer=sample__api__pb2.MetricListRequest.FromString,
+                    response_serializer=sample__api__pb2.MetricListResponse.SerializeToString,
+            ),
+            'MetricsListStreamResponse': grpc.unary_stream_rpc_method_handler(
+                    servicer.MetricsListStreamResponse,
                     request_deserializer=sample__api__pb2.MetricListRequest.FromString,
                     response_serializer=sample__api__pb2.MetricListResponse.SerializeToString,
             ),
@@ -86,7 +104,7 @@ class SampleApi(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def ListMetrics(request,
+    def MetricsListUnaryResponse(request,
             target,
             options=(),
             channel_credentials=None,
@@ -99,7 +117,34 @@ class SampleApi(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/sample.SampleApi/ListMetrics',
+            '/sample.SampleApi/MetricsListUnaryResponse',
+            sample__api__pb2.MetricListRequest.SerializeToString,
+            sample__api__pb2.MetricListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def MetricsListStreamResponse(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/sample.SampleApi/MetricsListStreamResponse',
             sample__api__pb2.MetricListRequest.SerializeToString,
             sample__api__pb2.MetricListResponse.FromString,
             options,
