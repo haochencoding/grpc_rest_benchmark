@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""test_client.py – simple smoke‑test for the gRPC Sample API service
+"""smoke_test.py – simple smoke‑test for the gRPC Sample API service
 
 Connects to the running server, calls each RPC, prints the **entire** Protobuf
 responses as pretty‑printed JSON, and times each round‑trip.
