@@ -63,56 +63,12 @@ def get_conn() -> sqlite3.Connection:
 
 class SampleApiService(pb2_grpc.SampleApiServicer):
     """Concrete implementation of the protobuf service."""
-
-    # USERS ────────────────────────────────────────────────────────────────
-    async def ListUsers(self, request: pb2.UserListRequest, context: grpc.aio.ServicerContext) -> pb2.UserListResponse:  # type: ignore[override]
-        sql = "SELECT * FROM user_data"
-        params: List[Any] = []
-        if request.age_min:
-            sql += " WHERE age >= ?"
-            params.append(request.age_min)
-        if request.age_max:
-            sql += (" AND" if request.age_min else " WHERE") + " age <= ?"
-            params.append(request.age_max)
-        sql += " ORDER BY user_id LIMIT ? OFFSET ?"
-        params += [request.limit or 50, request.offset]
-
-        with get_conn() as conn:
-            rows = conn.execute(sql, params).fetchall()
-        return pb2.UserListResponse(users=[pb2.User(**row) for row in rows])
-
-    async def GetUser(self, request: pb2.UserRequest, context: grpc.aio.ServicerContext) -> pb2.User:  # type: ignore[override]
-        with get_conn() as conn:
-            row = conn.execute("SELECT * FROM user_data WHERE user_id = ?", (request.user_id,)).fetchone()
-        if row is None:
-            await context.abort(grpc.StatusCode.NOT_FOUND, "User not found")
-        return pb2.User(**row)
-
-    # EVENTS ───────────────────────────────────────────────────────────────
-    async def ListEvents(self, request: pb2.EventListRequest, context: grpc.aio.ServicerContext) -> pb2.EventListResponse:  # type: ignore[override]
-        sql = "SELECT * FROM events"
-        params: List[Any] = []
-        clauses: List[str] = []
-        if request.user_id:
-            clauses.append("user_id = ?")
-            params.append(request.user_id)
-        if request.session_id:
-            clauses.append("session_id = ?")
-            params.append(request.session_id)
-        if request.event:
-            clauses.append("event = ?")
-            params.append(request.event)
-        if clauses:
-            sql += " WHERE " + " AND ".join(clauses)
-        sql += " ORDER BY id LIMIT ? OFFSET ?"
-        params += [request.limit or 50, request.offset]
-
-        with get_conn() as conn:
-            rows = conn.execute(sql, params).fetchall()
-        return pb2.EventListResponse(events=[pb2.Event(**row) for row in rows])
-
     # METRICS ──────────────────────────────────────────────────────────────
-    async def ListMetrics(self, request: pb2.MetricListRequest, context: grpc.aio.ServicerContext) -> pb2.MetricListResponse:  # type: ignore[override]
+    async def ListMetrics(
+            self,
+            request: pb2.MetricListRequest,
+            context: grpc.aio.ServicerContext
+    ) -> pb2.MetricListResponse:  # type: ignore[override]
         sql = "SELECT * FROM host_metrics"
         params: List[Any] = []
         clauses: List[str] = []
@@ -130,6 +86,26 @@ class SampleApiService(pb2_grpc.SampleApiServicer):
         with get_conn() as conn:
             rows = conn.execute(sql, params).fetchall()
         return pb2.MetricListResponse(metrics=[pb2.Metric(**row) for row in rows])
+    
+    async def CountMetrics(
+        self,
+        request: pb2.MetricCountRequest,
+        context: grpc.aio.ServicerContext,
+    ) -> pb2.MetricCountResponse:                                       # type: ignore[override]
+        sql = "SELECT COUNT(*) AS cnt FROM host_metrics"
+        params, clauses = [], []
+        if request.hostname:
+            clauses.append("hostname = ?")
+            params.append(request.hostname)
+        if request.region:
+            clauses.append("region = ?")
+            params.append(request.region)
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
+
+        with get_conn() as conn:
+            row = conn.execute(sql, params).fetchone()
+        return pb2.MetricCountResponse(count=row["cnt"])
 
 # ---------------------------------------------------------------------------
 # Bootstrap

@@ -3,58 +3,11 @@ syntax = "proto3";
 package sample;
 
 service SampleApi {
-  rpc ListUsers   (UserListRequest)   returns (UserListResponse);
-  rpc GetUser     (UserRequest)       returns (User);
-  rpc ListEvents  (EventListRequest)  returns (EventListResponse);
   rpc ListMetrics (MetricListRequest) returns (MetricListResponse);
+  rpc CountMetrics (MetricCountRequest) returns (MetricCountResponse);
 }
 
 /* ─────────── messages ─────────── */
-
-message User {
-  uint32 user_id   = 1;
-  string first_name = 2;
-  string last_name  = 3;
-  string zip        = 4;
-  string job        = 5;
-  uint32 age        = 6;
-}
-
-message UserListRequest {
-  uint32 limit   = 1;
-  uint32 offset  = 2;
-  uint32 age_min = 3;
-  uint32 age_max = 4;
-}
-
-message UserListResponse { repeated User users = 1; }
-
-message UserRequest { uint32 user_id = 1; }
-
-message Event {
-  uint32 id          = 1;
-  string channel     = 2;
-  string ip_address  = 3;
-  string session_id  = 4;
-  uint32 user_id     = 5;
-  string event       = 6;
-  string user_group  = 7;
-  uint64 current_time = 8;            // epoch-ms fits in 64-bit
-  string query       = 9;
-  uint32 product_id  = 10;
-  string product     = 11;
-  uint32 quantity    = 12;
-}
-
-message EventListRequest {
-  uint32 limit      = 1;
-  uint32 offset     = 2;
-  uint32 user_id    = 3;
-  string session_id = 4;
-  string event      = 5;
-}
-
-message EventListResponse { repeated Event events = 1; }
 
 message Metric {
   uint32 id                = 1;
@@ -74,3 +27,12 @@ message MetricListRequest {
 }
 
 message MetricListResponse { repeated Metric metrics = 1; }
+
+message MetricCountRequest {
+  string hostname = 1;
+  string region   = 2;
+}
+
+message MetricCountResponse {
+  uint64 count = 1;
+}

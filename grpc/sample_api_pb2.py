@@ -24,33 +24,23 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10sample_api.proto\x12\x06sample\"e\n\x04User\x12\x0f\n\x07user_id\x18\x01 \x01(\r\x12\x12\n\nfirst_name\x18\x02 \x01(\t\x12\x11\n\tlast_name\x18\x03 \x01(\t\x12\x0b\n\x03zip\x18\x04 \x01(\t\x12\x0b\n\x03job\x18\x05 \x01(\t\x12\x0b\n\x03\x61ge\x18\x06 \x01(\r\"R\n\x0fUserListRequest\x12\r\n\x05limit\x18\x01 \x01(\r\x12\x0e\n\x06offset\x18\x02 \x01(\r\x12\x0f\n\x07\x61ge_min\x18\x03 \x01(\r\x12\x0f\n\x07\x61ge_max\x18\x04 \x01(\r\"/\n\x10UserListResponse\x12\x1b\n\x05users\x18\x01 \x03(\x0b\x32\x0c.sample.User\"\x1e\n\x0bUserRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\r\"\xdc\x01\n\x05\x45vent\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0f\n\x07\x63hannel\x18\x02 \x01(\t\x12\x12\n\nip_address\x18\x03 \x01(\t\x12\x12\n\nsession_id\x18\x04 \x01(\t\x12\x0f\n\x07user_id\x18\x05 \x01(\r\x12\r\n\x05\x65vent\x18\x06 \x01(\t\x12\x12\n\nuser_group\x18\x07 \x01(\t\x12\x14\n\x0c\x63urrent_time\x18\x08 \x01(\x04\x12\r\n\x05query\x18\t \x01(\t\x12\x12\n\nproduct_id\x18\n \x01(\r\x12\x0f\n\x07product\x18\x0b \x01(\t\x12\x10\n\x08quantity\x18\x0c \x01(\r\"e\n\x10\x45ventListRequest\x12\r\n\x05limit\x18\x01 \x01(\r\x12\x0e\n\x06offset\x18\x02 \x01(\r\x12\x0f\n\x07user_id\x18\x03 \x01(\r\x12\x12\n\nsession_id\x18\x04 \x01(\t\x12\r\n\x05\x65vent\x18\x05 \x01(\t\"2\n\x11\x45ventListResponse\x12\x1d\n\x06\x65vents\x18\x01 \x03(\x0b\x32\r.sample.Event\"\x83\x01\n\x06Metric\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06region\x18\x02 \x01(\t\x12\n\n\x02\x61z\x18\x03 \x01(\t\x12\x10\n\x08hostname\x18\x04 \x01(\t\x12\n\n\x02ts\x18\x05 \x01(\t\x12\x17\n\x0f\x63pu_utilization\x18\x06 \x01(\x01\x12\x1a\n\x12memory_utilization\x18\x07 \x01(\x01\"T\n\x11MetricListRequest\x12\r\n\x05limit\x18\x01 \x01(\r\x12\x0e\n\x06offset\x18\x02 \x01(\r\x12\x10\n\x08hostname\x18\x03 \x01(\t\x12\x0e\n\x06region\x18\x04 \x01(\t\"5\n\x12MetricListResponse\x12\x1f\n\x07metrics\x18\x01 \x03(\x0b\x32\x0e.sample.Metric2\x82\x02\n\tSampleApi\x12>\n\tListUsers\x12\x17.sample.UserListRequest\x1a\x18.sample.UserListResponse\x12,\n\x07GetUser\x12\x13.sample.UserRequest\x1a\x0c.sample.User\x12\x41\n\nListEvents\x12\x18.sample.EventListRequest\x1a\x19.sample.EventListResponse\x12\x44\n\x0bListMetrics\x12\x19.sample.MetricListRequest\x1a\x1a.sample.MetricListResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10sample_api.proto\x12\x06sample\"\x83\x01\n\x06Metric\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06region\x18\x02 \x01(\t\x12\n\n\x02\x61z\x18\x03 \x01(\t\x12\x10\n\x08hostname\x18\x04 \x01(\t\x12\n\n\x02ts\x18\x05 \x01(\t\x12\x17\n\x0f\x63pu_utilization\x18\x06 \x01(\x01\x12\x1a\n\x12memory_utilization\x18\x07 \x01(\x01\"T\n\x11MetricListRequest\x12\r\n\x05limit\x18\x01 \x01(\r\x12\x0e\n\x06offset\x18\x02 \x01(\r\x12\x10\n\x08hostname\x18\x03 \x01(\t\x12\x0e\n\x06region\x18\x04 \x01(\t\"5\n\x12MetricListResponse\x12\x1f\n\x07metrics\x18\x01 \x03(\x0b\x32\x0e.sample.Metric\"6\n\x12MetricCountRequest\x12\x10\n\x08hostname\x18\x01 \x01(\t\x12\x0e\n\x06region\x18\x02 \x01(\t\"$\n\x13MetricCountResponse\x12\r\n\x05\x63ount\x18\x01 \x01(\x04\x32\x9a\x01\n\tSampleApi\x12\x44\n\x0bListMetrics\x12\x19.sample.MetricListRequest\x1a\x1a.sample.MetricListResponse\x12G\n\x0c\x43ountMetrics\x12\x1a.sample.MetricCountRequest\x1a\x1b.sample.MetricCountResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'sample_api_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_USER']._serialized_start=28
-  _globals['_USER']._serialized_end=129
-  _globals['_USERLISTREQUEST']._serialized_start=131
-  _globals['_USERLISTREQUEST']._serialized_end=213
-  _globals['_USERLISTRESPONSE']._serialized_start=215
-  _globals['_USERLISTRESPONSE']._serialized_end=262
-  _globals['_USERREQUEST']._serialized_start=264
-  _globals['_USERREQUEST']._serialized_end=294
-  _globals['_EVENT']._serialized_start=297
-  _globals['_EVENT']._serialized_end=517
-  _globals['_EVENTLISTREQUEST']._serialized_start=519
-  _globals['_EVENTLISTREQUEST']._serialized_end=620
-  _globals['_EVENTLISTRESPONSE']._serialized_start=622
-  _globals['_EVENTLISTRESPONSE']._serialized_end=672
-  _globals['_METRIC']._serialized_start=675
-  _globals['_METRIC']._serialized_end=806
-  _globals['_METRICLISTREQUEST']._serialized_start=808
-  _globals['_METRICLISTREQUEST']._serialized_end=892
-  _globals['_METRICLISTRESPONSE']._serialized_start=894
-  _globals['_METRICLISTRESPONSE']._serialized_end=947
-  _globals['_SAMPLEAPI']._serialized_start=950
-  _globals['_SAMPLEAPI']._serialized_end=1208
+  _globals['_METRIC']._serialized_start=29
+  _globals['_METRIC']._serialized_end=160
+  _globals['_METRICLISTREQUEST']._serialized_start=162
+  _globals['_METRICLISTREQUEST']._serialized_end=246
+  _globals['_METRICLISTRESPONSE']._serialized_start=248
+  _globals['_METRICLISTRESPONSE']._serialized_end=301
+  _globals['_METRICCOUNTREQUEST']._serialized_start=303
+  _globals['_METRICCOUNTREQUEST']._serialized_end=357
+  _globals['_METRICCOUNTRESPONSE']._serialized_start=359
+  _globals['_METRICCOUNTRESPONSE']._serialized_end=395
+  _globals['_SAMPLEAPI']._serialized_start=398
+  _globals['_SAMPLEAPI']._serialized_end=552
 # @@protoc_insertion_point(module_scope)

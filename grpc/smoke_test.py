@@ -49,22 +49,15 @@ def run_tests(host: str, port: int) -> None:
     def pretty(msg):
         return MessageToJson(msg, preserving_proto_field_name=True, indent=2)
 
-    # Users ------------------------------------------------------------
-    resp, ms = timed_call(lambda: stub.ListUsers(pb2.UserListRequest(limit=5)))
-    print(f"ListUsers  ({ms:.2f} ms):\n{pretty(resp)}\n")
-
-    if resp.users:
-        one_id = resp.users[0].user_id
-        resp_u, ms = timed_call(lambda: stub.GetUser(pb2.UserRequest(user_id=one_id)))
-        print(f"GetUser    ({ms:.2f} ms):\n{pretty(resp_u)}\n")
-
-    # Events -----------------------------------------------------------
-    resp_e, ms = timed_call(lambda: stub.ListEvents(pb2.EventListRequest(limit=5)))
-    print(f"ListEvents ({ms:.2f} ms):\n{pretty(resp_e)}\n")
-
-    # Metrics ----------------------------------------------------------
+    # Fetch Metrics ----------------------------------------------------------
     resp_m, ms = timed_call(lambda: stub.ListMetrics(pb2.MetricListRequest(limit=5)))
     print(f"ListMetrics({ms:.2f} ms):\n{pretty(resp_m)}\n")
+    resp_m, ms = timed_call(lambda: stub.ListMetrics(pb2.MetricListRequest(limit=5, offset=5)))
+    print(f"ListMetrics({ms:.2f} ms):\n{pretty(resp_m)}\n")
+
+    # Fetch total count -----------------------------------------------------------
+    resp_c, ms = timed_call(lambda: stub.CountMetrics(pb2.MetricCountRequest()))
+    print(f"CountMetrics(all)  ({ms:.2f} ms):\n{pretty(resp_c)}\n")
 
     print("All RPCs succeeded ✔")
 

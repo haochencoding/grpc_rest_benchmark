@@ -34,50 +34,28 @@ class SampleApiStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.ListUsers = channel.unary_unary(
-                '/sample.SampleApi/ListUsers',
-                request_serializer=sample__api__pb2.UserListRequest.SerializeToString,
-                response_deserializer=sample__api__pb2.UserListResponse.FromString,
-                _registered_method=True)
-        self.GetUser = channel.unary_unary(
-                '/sample.SampleApi/GetUser',
-                request_serializer=sample__api__pb2.UserRequest.SerializeToString,
-                response_deserializer=sample__api__pb2.User.FromString,
-                _registered_method=True)
-        self.ListEvents = channel.unary_unary(
-                '/sample.SampleApi/ListEvents',
-                request_serializer=sample__api__pb2.EventListRequest.SerializeToString,
-                response_deserializer=sample__api__pb2.EventListResponse.FromString,
-                _registered_method=True)
         self.ListMetrics = channel.unary_unary(
                 '/sample.SampleApi/ListMetrics',
                 request_serializer=sample__api__pb2.MetricListRequest.SerializeToString,
                 response_deserializer=sample__api__pb2.MetricListResponse.FromString,
+                _registered_method=True)
+        self.CountMetrics = channel.unary_unary(
+                '/sample.SampleApi/CountMetrics',
+                request_serializer=sample__api__pb2.MetricCountRequest.SerializeToString,
+                response_deserializer=sample__api__pb2.MetricCountResponse.FromString,
                 _registered_method=True)
 
 
 class SampleApiServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def ListUsers(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def GetUser(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def ListEvents(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
     def ListMetrics(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CountMetrics(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -86,25 +64,15 @@ class SampleApiServicer(object):
 
 def add_SampleApiServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'ListUsers': grpc.unary_unary_rpc_method_handler(
-                    servicer.ListUsers,
-                    request_deserializer=sample__api__pb2.UserListRequest.FromString,
-                    response_serializer=sample__api__pb2.UserListResponse.SerializeToString,
-            ),
-            'GetUser': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetUser,
-                    request_deserializer=sample__api__pb2.UserRequest.FromString,
-                    response_serializer=sample__api__pb2.User.SerializeToString,
-            ),
-            'ListEvents': grpc.unary_unary_rpc_method_handler(
-                    servicer.ListEvents,
-                    request_deserializer=sample__api__pb2.EventListRequest.FromString,
-                    response_serializer=sample__api__pb2.EventListResponse.SerializeToString,
-            ),
             'ListMetrics': grpc.unary_unary_rpc_method_handler(
                     servicer.ListMetrics,
                     request_deserializer=sample__api__pb2.MetricListRequest.FromString,
                     response_serializer=sample__api__pb2.MetricListResponse.SerializeToString,
+            ),
+            'CountMetrics': grpc.unary_unary_rpc_method_handler(
+                    servicer.CountMetrics,
+                    request_deserializer=sample__api__pb2.MetricCountRequest.FromString,
+                    response_serializer=sample__api__pb2.MetricCountResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -116,87 +84,6 @@ def add_SampleApiServicer_to_server(servicer, server):
  # This class is part of an EXPERIMENTAL API.
 class SampleApi(object):
     """Missing associated documentation comment in .proto file."""
-
-    @staticmethod
-    def ListUsers(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/sample.SampleApi/ListUsers',
-            sample__api__pb2.UserListRequest.SerializeToString,
-            sample__api__pb2.UserListResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def GetUser(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/sample.SampleApi/GetUser',
-            sample__api__pb2.UserRequest.SerializeToString,
-            sample__api__pb2.User.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def ListEvents(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/sample.SampleApi/ListEvents',
-            sample__api__pb2.EventListRequest.SerializeToString,
-            sample__api__pb2.EventListResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
 
     @staticmethod
     def ListMetrics(request,
@@ -215,6 +102,33 @@ class SampleApi(object):
             '/sample.SampleApi/ListMetrics',
             sample__api__pb2.MetricListRequest.SerializeToString,
             sample__api__pb2.MetricListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CountMetrics(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/sample.SampleApi/CountMetrics',
+            sample__api__pb2.MetricCountRequest.SerializeToString,
+            sample__api__pb2.MetricCountResponse.FromString,
             options,
             channel_credentials,
             insecure,

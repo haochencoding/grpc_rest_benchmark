@@ -118,28 +118,30 @@ def _flush_host_metrics(cur: sqlite3.Cursor, buf: List[Dict[str, str | float]]):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Load amazon‑timestream sample CSVs into SQLite")
-    ap.add_argument("--db", default="data.db", help="SQLite file to create/update (default: %(default)s)")
-    ap.add_argument("--dir", default=os.getcwd(), help="Directory containing the CSV files (default: cwd)")
+    ap = argparse.ArgumentParser(description="Load sample-multi.csv into SQLite twice")
+    ap.add_argument("--db",  default="data.db",
+                    help="SQLite file to create/update (default: %(default)s)")
+    ap.add_argument("--dir", default=os.getcwd(),
+                    help="Directory containing the CSV files (default: cwd)")
+    # NEW ───── add a flag so you can choose how many times to replay the file
+    ap.add_argument("--repeat", type=int, default=2,
+                    help="How many times to load the CSV (default: %(default)s)")
     args = ap.parse_args()
 
-    csv_dir = os.path.abspath(args.dir)
-
-    paths = {
-        "host_metrics": os.path.join(csv_dir, "sample-multi.csv"),
-    }
-
-    missing = [name for name, p in paths.items() if not os.path.exists(p)]
-    if missing:
-        raise SystemExit(f"Missing CSV file(s): {', '.join(missing)} in {csv_dir}")
+    csv_path = os.path.join(os.path.abspath(args.dir), "sample-multi.csv")
+    if not os.path.exists(csv_path):
+        raise SystemExit(f"Missing CSV file sample-multi.csv in {args.dir}")
 
     conn = sqlite3.connect(args.db)
     create_tables(conn)
 
-    load_host_metrics(conn, paths["host_metrics"])
+    # ── run the loader N times ───────────────────────────────────────────────
+    for i in range(args.repeat):
+        print(f"Pass {i+1}/{args.repeat} …")
+        load_host_metrics(conn, csv_path)
 
     conn.close()
-    print(f"✔ SQLite database ready → {args.db}")
+    print(f"✔ Done – CSV loaded {args.repeat}× into {args.db}")
 
 
 if __name__ == "__main__":

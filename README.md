@@ -3,11 +3,14 @@
 Convert csv into a sqlite database
 ```bash
 cd db
-python load_csv_to_sqlite.py --dir csv/ --db data.db
+# the repeat flag control the number of loading
+python load_csv_to_sqlite.py --dir csv/ --db data.db --repeat 2
 cd ..
 ```
 
-# Generate proto
+# gRPC backend
+
+## Generate proto
 
 ```bash
 cd grpc
@@ -15,13 +18,13 @@ python -m grpc_tools.protoc --proto_path=. sample_api.proto --python_out=. --grp
 cd ..
 ```
 
-Run gRPC backend server
+## Run gRPC backend server
 
 ```
-python grpc/server.py
+python grpc/grpc_server.py
 ```
 
-In another terminal, Run gRPC test client to see if the server 
+In another terminal, run smoke test to see if the server is running correctly
 ```
-python grpc/test_client.py
+python grpc/smoke_test.py
 ```
