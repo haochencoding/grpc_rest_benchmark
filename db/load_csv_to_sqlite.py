@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 """load_csv_to_sqlite.py
 
-Populate a local SQLite database with the sample datasets that ship with
-amazon‑timestream‑tools /sample_apps/.
+Populate a local SQLite database with the sample datasets
 
-* user_data.csv          →  table **user_data**          (lookup / dimension)
-* sample_unload.csv      →  table **events**             (behavioural stream)
 * sample‑multi.csv       →  table **host_metrics**       (multi‑measure time series)
 
 Usage (default database name is data.db and CSVs are in current dir):
@@ -25,8 +22,6 @@ import os
 import sqlite3
 from typing import List, Dict
 
-import pandas as pd
-
 # ──────────────────────────────────────────────────────────────────────────────
 # Schema helpers
 # ──────────────────────────────────────────────────────────────────────────────
@@ -35,39 +30,6 @@ import pandas as pd
 def create_tables(conn: sqlite3.Connection) -> None:
     """Create destination tables if they don’t already exist."""
     cur = conn.cursor()
-    # Dimension table: user profile
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS user_data (
-            user_id       INTEGER PRIMARY KEY,
-            first_name    TEXT,
-            last_name     TEXT,
-            zip           TEXT,
-            job           TEXT,
-            age           INTEGER
-        );
-        """
-    )
-
-    # Click‑stream / business events
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS events (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            channel       TEXT,
-            ip_address    TEXT,
-            session_id    TEXT,
-            user_id       INTEGER,
-            event         TEXT,
-            user_group    TEXT,
-            current_time  INTEGER,   -- epoch‑milliseconds
-            query         TEXT,
-            product_id    INTEGER,
-            product       TEXT,
-            quantity      INTEGER
-        );
-        """
-    )
 
     # Host telemetry (multi‑measure row)
     cur.execute(
@@ -87,27 +49,9 @@ def create_tables(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Loaders for each file
+# CSV → dict helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
-
-def load_user_data(conn: sqlite3.Connection, path: str) -> None:
-    """Load ~95k rows of user profiles via pandas; this fits comfortably in RAM."""
-    df = pd.read_csv(path)
-    df.to_sql("user_data", conn, if_exists="append", index=False)
-    print(f"✓ Inserted {len(df):,} rows into user_data")
-
-
-def load_events(conn: sqlite3.Connection, path: str, chunk: int = 10_000) -> None:
-    """Load the click‑stream in streamed chunks to keep memory usage low."""
-    total = 0
-    for chunk_df in pd.read_csv(path, chunksize=chunk):
-        chunk_df.to_sql("events", conn, if_exists="append", index=False)
-        total += len(chunk_df)
-    print(f"✓ Inserted {total:,} rows into events")
-
-
-# --- host_metrics (sample‑multi.csv) -----------------------------------------
 
 _COLS = [
     "region",
@@ -182,8 +126,6 @@ def main():
     csv_dir = os.path.abspath(args.dir)
 
     paths = {
-        "user_data": os.path.join(csv_dir, "user_data.csv"),
-        "events": os.path.join(csv_dir, "sample_unload.csv"),
         "host_metrics": os.path.join(csv_dir, "sample-multi.csv"),
     }
 
@@ -194,8 +136,6 @@ def main():
     conn = sqlite3.connect(args.db)
     create_tables(conn)
 
-    load_user_data(conn, paths["user_data"])
-    load_events(conn, paths["events"])
     load_host_metrics(conn, paths["host_metrics"])
 
     conn.close()
