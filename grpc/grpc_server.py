@@ -18,10 +18,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import sqlite3
 import sys
-from pathlib import Path
-from typing import Any, Dict, List
 
 import time
 import json
@@ -32,20 +29,17 @@ import grpc
 import sample_api_pb2 as pb2               # generated messages
 import sample_api_pb2_grpc as pb2_grpc     # generated service stubs
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Configuration (CLI flags parsed in main())
-# ──────────────────────────────────────────────────────────────────────────────
-DB_CHUNK_ROWS = 1_000                   # rows fetched per SQL query
+from itertools import islice
+from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(BASE_DIR))       # ensure generated stubs import correctly
-DEFAULT_DB = BASE_DIR.parent / "db" / "data.db"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent 
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from shared.db_utils import DEFAULT_DB, select_rows, count_rows
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Configuration (Logging)
 # ──────────────────────────────────────────────────────────────────────────────
-
-
 logging.basicConfig(                      # ❶ root logger setup
     level=logging.INFO,                   # show INFO and higher
     format="%(message)s",                 # print the raw JSON only
@@ -54,24 +48,10 @@ logging.basicConfig(                      # ❶ root logger setup
 
 log = logging.getLogger("api.metrics")    # ❷ your scoped logger
 
-# ---------------------------------------------------------------------------
-# SQLite helpers
-# ---------------------------------------------------------------------------
-
-
-def _dict_factory(cursor: sqlite3.Cursor, row: tuple[Any, ...]) -> Dict[str, Any]:
-    """Return rows as dicts so we can unpack into Protobuf easily."""
-    return {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
-
-
-def get_conn(db_path: str) -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = _dict_factory
-    return conn
-
 # ──────────────────────────────────────────────────────────────────────────────
 # Service implementation
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class SampleApiService(pb2_grpc.SampleApiServicer):
     """Implements SampleApi defined in sample.proto."""
@@ -79,32 +59,6 @@ class SampleApiService(pb2_grpc.SampleApiServicer):
     def __init__(self, db_path: str, max_batch_bytes: int):
         self._db_path = db_path
         self._max_batch_bytes = max_batch_bytes
-
-    # ———————————————————  HELPERS  ————————————————————————————————
-    def _select_rows(
-        self,
-        req: pb2.MetricListRequest,
-        limit: int,
-        offset: int,
-    ) -> List[Dict[str, Any]]:
-        sql = "SELECT * FROM host_metrics"
-        params: List[Any] = []
-        clauses: List[str] = []
-
-        if req.hostname:
-            clauses.append("hostname = ?")
-            params.append(req.hostname)
-        if req.region:
-            clauses.append("region = ?")
-            params.append(req.region)
-        if clauses:
-            sql += " WHERE " + " AND ".join(clauses)
-
-        sql += " ORDER BY id LIMIT ? OFFSET ?"
-        params += [limit, offset]
-
-        with get_conn(self._db_path) as conn:
-            return conn.execute(sql, params).fetchall()
 
     # ———————————————————  UNARY  ————————————————————————————————
     async def MetricsListUnaryResponse(           # type: ignore[override]
@@ -118,7 +72,13 @@ class SampleApiService(pb2_grpc.SampleApiServicer):
         offset = request.offset
 
         # ───── query DB
-        rows = self._select_rows(request, limit, offset)
+        rows = select_rows(
+            hostname=request.hostname or None,
+            region=request.region or None,
+            limit=limit,
+            offset=offset,
+            db_path=self._db_path,
+        )
         t_query_done = time.time_ns()
 
         # ───── serialize protobuf
@@ -162,40 +122,23 @@ class SampleApiService(pb2_grpc.SampleApiServicer):
         request: pb2.MetricListRequest,
         context: grpc.aio.ServicerContext,
     ):
-        remaining = request.limit or None         # None ⇒ stream all
-        offset = request.offset
+        rows = select_rows(
+            hostname=request.hostname or None,
+            region=request.region or None,
+            limit=request.limit or 50,
+            offset=request.offset,
+            db_path=self._db_path,
+        )
 
-        batch: List[pb2.Metric] = []
-        bytes_used = 0
-
-        while remaining is None or remaining > 0:
-            page_size = DB_CHUNK_ROWS
-            if remaining is not None:
-                page_size = min(page_size, remaining)
-
-            rows = self._select_rows(request, page_size, offset)
-            if not rows:
+        BATCH_ROWS = 40_000
+        it = iter(rows)
+        while True:
+            chunk = list(islice(it, BATCH_ROWS))
+            if not chunk:
                 break
-
-            for r in rows:
-                metric = pb2.Metric(**r)
-                m_size = metric.ByteSize()
-
-                if batch and bytes_used + m_size > self._max_batch_bytes:
-                    await context.write(pb2.MetricListResponse(metrics=batch))
-                    batch, bytes_used = [], 0
-
-                batch.append(metric)
-                bytes_used += m_size
-                offset += 1
-
-                if remaining is not None:
-                    remaining -= 1
-                    if remaining == 0:
-                        break
-
-        if batch:
-            await context.write(pb2.MetricListResponse(metrics=batch))
+            await context.write(
+                pb2.MetricListResponse(metrics=[pb2.Metric(**r) for r in chunk])
+            )
 
     # ———————————————————  COUNT  ————————————————————————————————
     async def CountMetrics(                      # type: ignore[override]
@@ -203,18 +146,12 @@ class SampleApiService(pb2_grpc.SampleApiServicer):
         request: pb2.MetricCountRequest,
         context: grpc.aio.ServicerContext,
     ) -> pb2.MetricCountResponse:
-        sql = "SELECT COUNT(*) AS cnt FROM host_metrics"
-        params, clauses = [], []
-        if request.hostname:
-            clauses.append("hostname = ?"); params.append(request.hostname)
-        if request.region:
-            clauses.append("region   = ?"); params.append(request.region)
-        if clauses:
-            sql += " WHERE " + " AND ".join(clauses)
-
-        with get_conn(self._db_path) as conn:
-            row = conn.execute(sql, params).fetchone()
-        return pb2.MetricCountResponse(count=row["cnt"])
+        nrows = count_rows(
+            hostname=request.hostname,
+            region=request.region,
+            db_path=self._db_path
+        )
+        return pb2.MetricCountResponse(count=nrows)
 
 # ---------------------------------------------------------------------------
 # Bootstrap
