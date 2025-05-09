@@ -23,6 +23,10 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
+import time
+import json
+import logging
+
 import grpc
 
 import sample_api_pb2 as pb2               # generated messages
@@ -36,6 +40,19 @@ DB_CHUNK_ROWS = 1_000                   # rows fetched per SQL query
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))       # ensure generated stubs import correctly
 DEFAULT_DB = BASE_DIR.parent / "db" / "data.db"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Configuration (Logging)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+logging.basicConfig(                      # ❶ root logger setup
+    level=logging.INFO,                   # show INFO and higher
+    format="%(message)s",                 # print the raw JSON only
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+
+log = logging.getLogger("api.metrics")    # ❷ your scoped logger
 
 # ---------------------------------------------------------------------------
 # SQLite helpers
@@ -95,11 +112,49 @@ class SampleApiService(pb2_grpc.SampleApiServicer):
         request: pb2.MetricListRequest,
         context: grpc.aio.ServicerContext,
     ) -> pb2.MetricListResponse:
-        limit  = request.limit or 50
+        t_in = time.time_ns()
+
+        limit = request.limit or 50
         offset = request.offset
 
+        # ───── query DB
         rows = self._select_rows(request, limit, offset)
-        return pb2.MetricListResponse(metrics=[pb2.Metric(**r) for r in rows])
+        t_query_done = time.time_ns()
+
+        # ───── serialize protobuf
+        resp = pb2.MetricListResponse(metrics=[pb2.Metric(**r) for r in rows])
+        t_serialized = time.time_ns()
+        size_bytes = resp.ByteSize()
+
+        # ---------- logging helper -----------------------------------
+        def _log_line() -> None:
+            t_out = time.time_ns()
+            log.info(
+                json.dumps(
+                    {
+                        "rpc": "MetricsListUnaryResponse",
+                        "params": {
+                            "limit":   limit,
+                            "offset":  offset,
+                            "hostname": request.hostname,
+                            "region":   request.region,
+                        },
+                        "t_in":         t_in,
+                        "t_query_done": t_query_done,
+                        "t_serialized": t_serialized,
+                        "t_out":        t_out,
+                        "size_bytes":   size_bytes,
+                    },
+                    separators=(",", ":"),
+                )
+            )
+
+        # ---------- register callback so we capture *t_out* ----------
+        # async-API (grpc.aio) ----------------------------------------
+        print("add_done_callback")
+        context.add_done_callback(lambda _: _log_line())
+
+        return resp
 
     # ———————————————————  STREAMING  ——————————————————————————————
     async def MetricsListStreamResponse(          # type: ignore[override]
