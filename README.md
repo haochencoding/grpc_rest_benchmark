@@ -4,7 +4,7 @@ Convert csv into a sqlite database
 ```bash
 cd db
 # the repeat flag control the number of loading
-python load_csv_to_sqlite.py --dir csv/ --db data.db --repeat 2
+python load_csv_to_sqlite.py --dir csv/ --db data.db --repeat 20
 cd ..
 ```
 
