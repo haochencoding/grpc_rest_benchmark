@@ -178,3 +178,6 @@ cython_debug/
 .AppleDouble
 .LSOverride
 Icon[]
+
+# database
+**/*.db
