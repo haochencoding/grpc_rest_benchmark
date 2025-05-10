@@ -22,15 +22,18 @@ The default is shared.db_utils.DEFAULT_DB (../db/data.db).
 from __future__ import annotations
 
 import argparse
+import gzip
+import json
 import os
 import sys
 import time
 from pathlib import Path
 
-import json
+from io import BytesIO
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
+from fastapi.responses import StreamingResponse
 
 from schemas import Metric, MetricsListResponse, MetricsCountResponse
 
@@ -94,8 +97,6 @@ async def list_metrics(
     resp_model = MetricsListResponse(metrics=[Metric(**r) for r in rows])
     t_serialized = time.time_ns()
 
-    size_bytes = len(json.dumps(resp_model.model_dump(by_alias=True), separators=(",", ":")).encode())
-
     def _log_line() -> None:
         log_rpc(
                 log=log,
@@ -109,12 +110,78 @@ async def list_metrics(
                 t_in=t_in,
                 t_query_done=t_query_done,
                 t_serialized=t_serialized,
-                size_bytes=size_bytes
+                size_bytes=len(json.dumps(resp_model.model_dump(by_alias=True), separators=(",", ":")).encode())
             )
 
     background_tasks.add_task(_log_line)
 
     return resp_model
+
+
+@app.get(
+    "/metrics-gz",
+    summary="List metrics (always gzip-compressed)",
+)
+async def list_metrics_gz(
+    limit: int = Query(50, ge=1),
+    offset: int = Query(0, ge=0),
+    hostname: str | None = Query(None),
+    region: str | None = Query(None),
+    background_tasks: BackgroundTasks = None,
+):
+    """Return a page of metrics rows, always gzip-compressed."""
+    t_in = time.time_ns()
+
+    try:
+        rows = select_rows(
+            hostname=hostname or None,
+            region=region or None,
+            limit=limit,
+            offset=offset,
+            db_path=app.state.db_path,
+        )
+    except Exception as exc:
+        raise HTTPException(500, str(exc)) from exc
+    
+    t_query_done = time.time_ns()
+
+    # 1. Build the regular response body (dict → JSON bytes, already minified)
+    payload = MetricsListResponse(metrics=[Metric(**r) for r in rows]).model_dump(
+        by_alias=True
+    )
+
+    t_serialized = time.time_ns()
+
+    raw = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+
+    # 2. Compress it into an in-memory buffer
+    buf = BytesIO()
+    with gzip.GzipFile(fileobj=buf, mode="wb") as gz:
+        gz.write(raw)
+    buf.seek(0)
+
+    def _log_line() -> None:
+        log_rpc(
+            log=log,
+            rpc="GET /metrics-gz",
+            params={"limit": limit, "offset": offset, "hostname": hostname, "region": region},
+            t_in=t_in,
+            t_query_done=t_query_done,
+            t_serialized=t_serialized,
+            size_bytes=str(len(buf.getbuffer())),
+        )
+
+    background_tasks.add_task(_log_line)
+    
+    # 3. Stream it back with proper headers
+    return StreamingResponse(
+        buf,
+        media_type="application/json",
+        headers={
+            "Content-Encoding": "gzip",
+            "Content-Length": str(len(buf.getbuffer())),
+        },
+    )
 
 
 @app.get(

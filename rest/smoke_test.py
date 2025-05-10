@@ -15,9 +15,12 @@ Flags mirror those of the gRPC test so they can be wired into the same CI job.
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import sys
 import time
+
+from io import BytesIO 
 from typing import Callable, Tuple
 
 import requests
@@ -83,6 +86,24 @@ def run_tests(host: str, port: int, nrows: int) -> None:
     size_big = json_size(body_big)
     print(
         f"GET /metrics?limit={nrows} – {ms:.2f} ms – {rows_big} rows – JSON {kb(size_big)}\n"
+    )
+
+    # 2. List large – gzip -----------------------------------------------------
+    resp_gz, ms_gz = timed(
+        lambda: sess.get(f"{base}/metrics-gz", params=params_big, timeout=30)
+    )
+    resp_gz.raise_for_status()
+
+    body_gz = resp_gz.json()                               # auto-decompressed
+    rows_gz = len(body_gz.get("metrics", []))
+
+    size_gz_header = int(resp_gz.headers.get("Content-Length", 0))  # compressed bytes
+    size_gz_json   = json_size(body_gz)                              # after decode
+
+    print(
+        f"GET /metrics-gz?limit={nrows} – {ms_gz:.2f} ms – "
+        f"{rows_gz} rows – gzip {kb(size_gz_header)} "
+        f"(→ JSON {kb(size_gz_json)})\n"
     )
 
     # 3. Count -------------------------------------------------------------
