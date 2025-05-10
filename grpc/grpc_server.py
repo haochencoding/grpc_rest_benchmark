@@ -18,16 +18,15 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import sys
-
-import time
+import grpc
 import json
 import logging
-
-import grpc
-
+from logging.handlers import RotatingFileHandler
+import os
 import sample_api_pb2 as pb2               # generated messages
 import sample_api_pb2_grpc as pb2_grpc     # generated service stubs
+import sys
+import time
 
 from itertools import islice
 from pathlib import Path
@@ -47,6 +46,26 @@ logging.basicConfig(                      # ❶ root logger setup
 )
 
 log = logging.getLogger("api.metrics")    # ❷ your scoped logger
+log.setLevel(logging.INFO)
+
+# --------- Rotating file handler (JSON‑lines) -------------------------------
+LOG_FILE_PATH = os.getenv("API_METRICS_LOG_PATH", "logs/grpc_api_metrics.jsonl")
+LOG_MAX_MB = int(os.getenv("API_METRICS_LOG_MAX_MB", "10"))   # each file ≤10 MiB
+LOG_BACKUP_CNT = int(os.getenv("API_METRICS_LOG_BACKUP", "5"))     # keep 5 backups
+
+_log_path = Path(LOG_FILE_PATH).expanduser()
+_log_path.parent.mkdir(parents=True, exist_ok=True)
+
+_file_hdlr = RotatingFileHandler(
+    LOG_FILE_PATH,
+    maxBytes=LOG_MAX_MB * 1024 * 1024,
+    backupCount=LOG_BACKUP_CNT,
+)
+_file_hdlr.setFormatter(logging.Formatter("%(message)s"))
+log.addHandler(_file_hdlr)
+# Prevent double‑logging via the root handler – messages are explicitly routed
+# to both stdout (root StreamHandler) and file (our RotatingFileHandler) once.
+log.propagate = True  # still bubble up to root so stdout keeps working
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Service implementation
@@ -104,6 +123,9 @@ class SampleApiService(pb2_grpc.SampleApiServicer):
                         "t_serialized": t_serialized,
                         "t_out":        t_out,
                         "size_bytes":   size_bytes,
+                        "sql_query_ns": t_query_done - t_in,
+                        "ser_ns": t_serialized - t_query_done,
+                        "app_ns": t_out - t_in
                     },
                     separators=(",", ":"),
                 )
