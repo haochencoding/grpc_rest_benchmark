@@ -24,10 +24,17 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
+from io import BytesIO
 from pathlib import Path
+from typing import Any, Dict
+
+import json
+import logging
+from logging.handlers import RotatingFileHandler
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 
 from schemas import Metric, MetricsListResponse, MetricsCountResponse
 
@@ -39,6 +46,7 @@ from shared.db_utils import DEFAULT_DB, select_rows, count_rows  # noqa: E402
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _effective_db_path() -> str:
     """Return the SQLite file to use for the current request.
@@ -52,6 +60,62 @@ def _effective_db_path() -> str:
         return str(app.state.db_path)
     return os.getenv("SQLITE_DB", str(DEFAULT_DB))
 
+def _log_request(
+    rpc: str,
+    params: Dict[str, Any],
+    t_in: int,
+    t_query_done: int,
+    t_serialized: int,
+    size_bytes: int,
+) -> None:
+    """Emit a structured log line for one REST handler."""
+    t_out = time.time_ns()
+    log.info(
+        json.dumps(
+            {
+                "rpc": rpc,
+                "params": params,
+                "t_in": t_in,
+                "t_query_done": t_query_done,
+                "t_serialized": t_serialized,
+                "t_out": t_out,
+                "size_bytes": size_bytes,
+                "sql_query_ns": t_query_done - t_in,
+                "ser_ns": t_serialized - t_query_done,
+                "app_ns": t_out - t_in,
+            },
+            separators=(",", ":"),
+        )
+    )
+
+# ────────────────────────────────────────────────────────────────────────────
+# Logging (stdout + rotating file, JSON‑lines)
+# ────────────────────────────────────────────────────────────────────────────
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",  # emit *only* the JSON log line
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+
+log = logging.getLogger("api.metrics")
+log.setLevel(logging.INFO)
+
+LOG_FILE_PATH = os.getenv("API_METRICS_LOG_PATH", "logs/rest_api_metrics.jsonl")
+LOG_MAX_MB = int(os.getenv("API_METRICS_LOG_MAX_MB", "10"))
+LOG_BACKUP_CNT = int(os.getenv("API_METRICS_LOG_BACKUP", "5"))
+
+_log_path = Path(LOG_FILE_PATH).expanduser()
+_log_path.parent.mkdir(parents=True, exist_ok=True)
+
+_file_hdlr = RotatingFileHandler(
+    _log_path,
+    maxBytes=LOG_MAX_MB * 1024 * 1024,
+    backupCount=LOG_BACKUP_CNT,
+)
+_file_hdlr.setFormatter(logging.Formatter("%(message)s"))
+log.addHandler(_file_hdlr)
+log.propagate = True  # bubble up to root – stdout handler already configured
 
 # ─────────────────────────────────────────────────────────────────────────────
 # FastAPI application
@@ -81,8 +145,11 @@ async def list_metrics(
     offset: int = Query(0, ge=0),
     hostname: str | None = Query(None),
     region: str | None = Query(None),
+    background_tasks: BackgroundTasks = None,
 ):
     """Return a page of metrics rows."""
+    t_in = time.time_ns()
+
     try:
         rows = select_rows(
             hostname=hostname or None,
@@ -93,8 +160,23 @@ async def list_metrics(
         )
     except Exception as exc:  # pragma: no cover – DB errors are integration‑tested elsewhere
         raise HTTPException(500, str(exc)) from exc
+    t_query_done = time.time_ns()
 
-    return MetricsListResponse(metrics=[Metric(**r) for r in rows])
+    resp_model = MetricsListResponse(metrics=[Metric(**r) for r in rows])
+    t_serialized = time.time_ns()
+
+    size_bytes = len(json.dumps(resp_model.model_dump(by_alias=True), separators=(",", ":")).encode())
+
+    background_tasks.add_task(
+        _log_request,
+        rpc="GET /metrics",
+        params={"limit": limit, "offset": offset, "hostname": hostname, "region": region},
+        t_in=t_in,
+        t_query_done=t_query_done,
+        t_serialized=t_serialized,
+        size_bytes=size_bytes,
+    )
+    return resp_model
 
 
 @app.get(
