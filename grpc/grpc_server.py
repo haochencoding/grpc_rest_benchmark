@@ -19,10 +19,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import grpc
-import json
-import logging
-from logging.handlers import RotatingFileHandler
-import os
 import sample_api_pb2 as pb2               # generated messages
 import sample_api_pb2_grpc as pb2_grpc     # generated service stubs
 import sys
@@ -35,37 +31,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from shared.db_utils import DEFAULT_DB, select_rows, count_rows
+from shared.logger_utils import setup_metrics_logger, log_rpc
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Configuration (Logging)
+# Set up logging
 # ──────────────────────────────────────────────────────────────────────────────
-logging.basicConfig(                      # ❶ root logger setup
-    level=logging.INFO,                   # show INFO and higher
-    format="%(message)s",                 # print the raw JSON only
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
 
-log = logging.getLogger("api.metrics")    # ❷ your scoped logger
-log.setLevel(logging.INFO)
-
-# --------- Rotating file handler (JSON‑lines) -------------------------------
-LOG_FILE_PATH = os.getenv("API_METRICS_LOG_PATH", "logs/grpc_api_metrics.jsonl")
-LOG_MAX_MB = int(os.getenv("API_METRICS_LOG_MAX_MB", "10"))   # each file ≤10 MiB
-LOG_BACKUP_CNT = int(os.getenv("API_METRICS_LOG_BACKUP", "5"))     # keep 5 backups
-
-_log_path = Path(LOG_FILE_PATH).expanduser()
-_log_path.parent.mkdir(parents=True, exist_ok=True)
-
-_file_hdlr = RotatingFileHandler(
-    LOG_FILE_PATH,
-    maxBytes=LOG_MAX_MB * 1024 * 1024,
-    backupCount=LOG_BACKUP_CNT,
-)
-_file_hdlr.setFormatter(logging.Formatter("%(message)s"))
-log.addHandler(_file_hdlr)
-# Prevent double‑logging via the root handler – messages are explicitly routed
-# to both stdout (root StreamHandler) and file (our RotatingFileHandler) once.
-log.propagate = True  # still bubble up to root so stdout keeps working
+log = setup_metrics_logger(name='grpc.api.metric')
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Service implementation
@@ -107,33 +79,22 @@ class SampleApiService(pb2_grpc.SampleApiServicer):
 
         # ---------- logging helper -----------------------------------
         def _log_line() -> None:
-            t_out = time.time_ns()
-            log.info(
-                json.dumps(
-                    {
-                        "rpc": "MetricsListUnaryResponse",
-                        "params": {
-                            "limit":   limit,
-                            "offset":  offset,
-                            "hostname": request.hostname,
-                            "region":   request.region,
-                        },
-                        "t_in":         t_in,
-                        "t_query_done": t_query_done,
-                        "t_serialized": t_serialized,
-                        "t_out":        t_out,
-                        "size_bytes":   size_bytes,
-                        "sql_query_ns": t_query_done - t_in,
-                        "ser_ns": t_serialized - t_query_done,
-                        "app_ns": t_out - t_in
+            log_rpc(
+                log=log,
+                rpc="MetricsListUnaryResponse",
+                params={
+                    "limit":   limit,
+                    "offset":  offset,
+                    "hostname": request.hostname,
+                    "region":   request.region,
                     },
-                    separators=(",", ":"),
-                )
+                t_in=t_in,
+                t_query_done=t_query_done,
+                t_serialized=t_serialized,
+                size_bytes=size_bytes
             )
 
         # ---------- register callback so we capture *t_out* ----------
-        # async-API (grpc.aio) ----------------------------------------
-        print("add_done_callback")
         context.add_done_callback(lambda _: _log_line())
 
         return resp
